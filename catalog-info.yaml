@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: hello-world
+  description: A demo service in the repository `hello_world` managed by the user `sdi2000188`.
+  annotations:
+    github.com/project-slug: sdi2000188/hello_world
+    backstage.io/techdocs-ref: url:https://github.com/sdi2000188/hello_world/blob/main/README.md
+spec:
+  type: service
+  owner: sdi2000188
+  lifecycle: experimental
