@@ -1,0 +1,48 @@
+name: Generate and Publish TechDocs
+
+on:
+  push:
+    # Trigger only when changes occur in these paths
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+  pull_request:
+    # Optionally trigger for pull requests involving these paths
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+
+jobs:
+  techdocs:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Set up Python to install MkDocs and plugins
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      # Install dependencies
+      - name: Install MkDocs and TechDocs Plugins
+        run: |
+          pip install mkdocs mkdocs-techdocs-core
+
+      # Generate the TechDocs site
+      - name: Generate TechDocs
+        run: |
+          techdocs-cli generate
+
+      # Optionally: Publish the generated site to your storage backend
+      - name: Publish TechDocs to Storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          techdocs-cli publish --publisher-type awsS3 \
+            --storage-name my-techdocs-bucket \
+            --entity default/Component/my-service
