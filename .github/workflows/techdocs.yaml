@@ -1,48 +1,65 @@
-name: Generate and Publish TechDocs
+name: Publish TechDocs Site
 
 on:
   push:
-    # Trigger only when changes occur in these paths
+    branches: [main]
+    # You can even set it to run only when TechDocs related files are updated.
     paths:
-      - 'docs/**'
-      - 'mkdocs.yml'
-  pull_request:
-    # Optionally trigger for pull requests involving these paths
-    paths:
-      - 'docs/**'
-      - 'mkdocs.yml'
+      - "docs/**"
+      - "mkdocs.yml"
 
 jobs:
-  techdocs:
+  publish-techdocs-site:
     runs-on: ubuntu-latest
 
+    # The following secrets are required in your CI environment for publishing files to AWS S3.
+    # e.g. You can use GitHub Organization secrets to set them for all existing and new repositories.
+    env:
+      TECHDOCS_S3_BUCKET_NAME: ${{ secrets.TECHDOCS_S3_BUCKET_NAME }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ENTITY_NAMESPACE: 'default'
+      ENTITY_KIND: 'Component'
+      ENTITY_NAME: 'my-doc-entity'
+      # In a Software template, Scaffolder will replace {{cookiecutter.component_id | jsonify}}
+      # with the correct entity name. This is same as metadata.name in the entity's catalog-info.yaml
+      # ENTITY_NAME: '{{ cookiecutter.component_id | jsonify }}'
+
     steps:
-      # Checkout the repository
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # Set up Python to install MkDocs and plugins
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-node@v3
+      - uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.9'
 
-      # Install dependencies
-      - name: Install MkDocs and TechDocs Plugins
+      # the 2 steps below can be removed if you aren't using plantuml in your documentation
+      - name: setup java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      - name: download, validate, install plantuml and its dependencies
         run: |
-          pip install mkdocs mkdocs-techdocs-core
+          curl -o plantuml.jar -L http://sourceforge.net/projects/plantuml/files/plantuml.1.2021.4.jar/download
+          echo "be498123d20eaea95a94b174d770ef94adfdca18  plantuml.jar" | sha1sum -c -
+          mv plantuml.jar /opt/plantuml.jar
+          mkdir -p "$HOME/.local/bin"
+          echo $'#!/bin/sh\n\njava -jar '/opt/plantuml.jar' ${@}' >> "$HOME/.local/bin/plantuml"
+          chmod +x "$HOME/.local/bin/plantuml"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sudo apt-get install -y graphviz
 
-      # Generate the TechDocs site
-      - name: Generate TechDocs
-        run: |
-          techdocs-cli generate
+      - name: Install techdocs-cli
+        run: sudo npm install -g @techdocs/cli
 
-      # Optionally: Publish the generated site to your storage backend
-      - name: Publish TechDocs to Storage
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: |
-          techdocs-cli publish --publisher-type awsS3 \
-            --storage-name my-techdocs-bucket \
-            --entity default/Component/my-service
+      - name: Install mkdocs and mkdocs plugins
+        run: python -m pip install mkdocs-techdocs-core==1.*
+
+      - name: Generate docs site
+        run: techdocs-cli generate --no-docker --verbose
+
+      - name: Publish docs site
+        run: techdocs-cli publish --publisher-type awsS3 --storage-name $TECHDOCS_S3_BUCKET_NAME --entity $ENTITY_NAMESPACE/$ENTITY_KIND/$ENTITY_NAME
