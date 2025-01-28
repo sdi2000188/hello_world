@@ -1,9 +1,9 @@
 site_name: 'example-docs'
 
 nav:
-  - Hom: index.md
+  - Home: README.md
 
 plugins:
   - techdocs-core
 
-docs_dir: ./docs  # This specifies where MkDocs should look for markdown files
+docs_dir: .
