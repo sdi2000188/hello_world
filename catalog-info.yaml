@@ -8,5 +8,5 @@ metadata:
     backstage.io/techdocs-ref: url:https://github.com/sdi2000188/hello_world
 spec:
   type: service
-  owner: sdi2000188
+  owner: Grigoris Tabaxis
   lifecycle: experimental
